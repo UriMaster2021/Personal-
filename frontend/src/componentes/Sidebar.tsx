@@ -1,7 +1,15 @@
 'use client'
+
 import Link from 'next/link'
 import { useState } from 'react'
 import keycloak from '../lib/keycloak'
+
+const NAV_ITEMS = [
+  { href: '/dashboard', label: 'Dashboard', icon: '🏠' },
+  { href: '#productos', label: 'Productos', icon: '📦' },
+  { href: '#reservas', label: 'Reservas', icon: '📋' },
+  { href: '#reportes', label: 'Reportes', icon: '📊' },
+]
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -11,67 +19,63 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className={`hidden lg:flex flex-col justify-between p-4 transition-all ${collapsed ? 'w-20' : 'w-64'}`}>
-      <div className="space-y-6">
-        {/* Header / Branding */}
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className={`relative inline-flex items-center justify-center ${collapsed ? 'w-10 h-10' : 'w-12 h-12'} bg-gradient-to-br from-violet-700 to-purple-700 rounded-xl shadow-md transition-all`}> 
-            <svg className="w-6 h-6 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-
-          {!collapsed && (
-            <div className="flex flex-col">
-              <div className="flex items-center gap-3">
-                <h2 className="text-sm font-semibold text-slate-100">Stock Manager</h2>
-                <span className="text-xs text-white/90 bg-violet-700 px-2 py-0.5 rounded-md font-medium">Grupo 02</span>
-              </div>
-              <p className="text-xs text-slate-400 -mt-1">Control de Inventario</p>
+    <aside
+      className={`hidden self-start rounded-3xl border border-white/70 bg-white/75 p-5 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.55)] backdrop-blur-xl transition-all lg:flex ${collapsed ? 'w-[84px]' : 'w-64'}`}
+    >
+      <div className="flex h-full w-full flex-col justify-between">
+        <div className="space-y-6">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div
+              className={`flex items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-400 to-purple-500 text-white shadow-[0_12px_30px_-16px_rgba(99,102,241,0.8)] transition-all ${collapsed ? 'h-11 w-11' : 'h-12 w-12'}`}
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
             </div>
-          )}
-        </Link>
 
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-3 text-sm text-slate-200 hover:text-white"
-        >
-          <span className="inline-flex items-center justify-center w-8 h-8 bg-violet-700 rounded-md shadow-md">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </span>
-          {!collapsed && <span className="font-semibold">Navegación</span>}
-        </button>
-
-        <nav className="flex flex-col gap-2">
-          <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <span className="w-8 h-8 flex items-center justify-center bg-violet-700 rounded-md">🏠</span>
-            {!collapsed && <span>Dashboard</span>}
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Panel</span>
+                <span className="text-sm font-semibold text-slate-900">Stock Manager</span>
+              </div>
+            )}
           </Link>
 
-          <Link href="#productos" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <span className="w-8 h-8 flex items-center justify-center bg-violet-700 rounded-md">📦</span>
-            {!collapsed && <span>Productos</span>}
-          </Link>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:border-indigo-200 hover:text-indigo-600"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </span>
+            {!collapsed && <span>Contraer menú</span>}
+          </button>
 
-          <Link href="#reservas" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <span className="w-8 h-8 flex items-center justify-center bg-violet-700 rounded-md">📋</span>
-            {!collapsed && <span>Reservas</span>}
-          </Link>
+          <nav className="space-y-2 text-sm font-semibold text-slate-500">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 transition hover:border-indigo-200/70 hover:bg-white/90 hover:text-indigo-600"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-50 text-base">{item.icon}</span>
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            ))}
+          </nav>
+        </div>
 
-          <Link href="#reportes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors">
-            <span className="w-8 h-8 flex items-center justify-center bg-violet-700 rounded-md">📊</span>
-            {!collapsed && <span>Reportes</span>}
-          </Link>
-        </nav>
-      </div>
-
-      <div className="pt-4">
-        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium transition">
-          <span className="w-7 h-7 flex items-center justify-center bg-white/10 rounded-md">⎋</span>
-          <span>Salir</span>
-        </button>
+        <div className="pt-4">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-rose-200/60 bg-rose-50/80 px-4 py-3 text-sm font-semibold text-rose-500 transition hover:bg-rose-100"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-base">⎋</span>
+            {!collapsed && <span>Cerrar sesión</span>}
+          </button>
+        </div>
       </div>
     </aside>
   )

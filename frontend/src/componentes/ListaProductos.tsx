@@ -1,204 +1,227 @@
-import React, { useEffect, useState } from 'react';
-import { obtenerProductos } from '../servicios/api';
+import { useMemo, useState } from 'react';
+import type { Producto } from '../lib/types';
 
-export interface Producto {
-  id_producto: number;
-  nombre: string;
-  descripcion?: string;
-  precio: number;
-  cantidad?: number | null;
-}
+type SortKey = 'nombre' | 'precio' | 'cantidad';
 
 interface Props {
-  actualizar?: boolean;
+  productos: Producto[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
 }
 
-export default function ListaProductos({ actualizar }: Props) {
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function ListaProductos({ productos, loading, error, onRetry }: Props) {
   const [filtro, setFiltro] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('nombre');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    obtenerProductos()
-      .then((res: Producto[]) => setProductos(res))
-      .catch((err: Error) => {
-        console.error('Error:', err);
-        setError(`Error al obtener productos: ${err.message}`);
-        setProductos([]);
-      })
-      .finally(() => setLoading(false));
-  }, [actualizar]);
+  const handleChangeOrden = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
 
-  const productosFiltrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const productosFiltrados = useMemo(() => {
+    const lower = filtro.toLowerCase();
+    const filtrados = productos.filter((producto) =>
+      producto.nombre.toLowerCase().includes(lower) ||
+      (producto.descripcion?.toLowerCase().includes(lower) ?? false)
+    );
+
+    return filtrados.sort((a, b) => {
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      if (sortKey === 'nombre') {
+        return a.nombre.localeCompare(b.nombre) * direction;
+      }
+      if (sortKey === 'precio') {
+        return ((a.precio ?? 0) - (b.precio ?? 0)) * direction;
+      }
+      const cantidadA = a.cantidad ?? 0;
+      const cantidadB = b.cantidad ?? 0;
+      return (cantidadA - cantidadB) * direction;
+    });
+  }, [filtro, productos, sortDirection, sortKey]);
+
+  const totalProductos = productos.length;
+  const totalStock = productos.reduce((sum, p) => sum + (p.cantidad ?? 0), 0);
+  const valorTotal = productos.reduce((sum, p) => sum + p.precio * (p.cantidad ?? 0), 0);
+  const stockCritico = productos.filter((p) => (p.cantidad ?? 0) < 5).length;
 
   if (error) {
     return (
-      <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-8 text-center backdrop-blur">
-        <svg className="w-16 h-16 mx-auto text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4v2m0 5v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-red-300 font-bold text-lg">{error}</p>
-        <p className="text-red-400/80 text-sm mt-2">Verifica que el backend esté corriendo en http://localhost:3000</p>
+      <div className="rounded-3xl border border-rose-200/70 bg-rose-50/80 px-6 py-10 text-center text-rose-600 shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="mt-4 text-lg font-semibold">No pudimos cargar los productos</p>
+        <p className="mt-2 text-sm text-rose-500/80">{error}</p>
+        <button onClick={onRetry} className="btn-secondary mt-6">Reintentar</button>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <div className="relative w-12 h-12">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-spin"></div>
-          <div className="absolute inset-1 bg-violet-900 rounded-full"></div>
-        </div>
-        <p className="text-slate-300 font-medium">Cargando productos...</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="animate-pulse rounded-3xl border border-slate-200/70 bg-white/60 p-6 shadow-sm"
+          >
+            <div className="h-4 w-2/3 rounded-full bg-slate-200/80" />
+            <div className="mt-4 h-3 w-1/3 rounded-full bg-slate-200/60" />
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <div className="h-12 rounded-2xl bg-slate-100/80" />
+              <div className="h-12 rounded-2xl bg-slate-100/60" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (productos.length === 0) {
+  if (!loading && productos.length === 0) {
     return (
-      <div className="text-center py-16 space-y-4">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-white/5 rounded-full">
-          <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="rounded-3xl border border-slate-200/70 bg-white/80 px-6 py-12 text-center shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 text-indigo-500">
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
         </div>
-        <div>
-          <p className="text-white text-lg font-bold">No hay productos</p>
-          <p className="text-slate-400 text-sm mt-1">Crea tu primer producto usando el formulario</p>
-        </div>
+        <p className="mt-4 text-lg font-semibold text-slate-800">Todavía no hay productos</p>
+        <p className="mt-2 text-sm text-slate-500">Agrega tu primer ítem con el formulario de la izquierda.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filtro */}
-      <div className="relative">
-        <svg className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Buscar productos..."
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all"
-        />
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full max-w-xl items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm">
+          <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Buscar por nombre o descripción"
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="flex-1 bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ordenar por</span>
+          {(['nombre', 'precio', 'cantidad'] as SortKey[]).map((key) => (
+            <button
+              key={key}
+              onClick={() => handleChangeOrden(key)}
+              type="button"
+              className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                sortKey === key
+                  ? 'border-indigo-300 bg-indigo-50 text-indigo-600 shadow-sm'
+                  : 'border-slate-200/70 bg-white/80 text-slate-500 hover:border-indigo-200/70 hover:text-indigo-600'
+              }`}
+            >
+              {key === 'nombre' && 'Nombre'}
+              {key === 'precio' && 'Precio'}
+              {key === 'cantidad' && 'Stock'}
+              {sortKey === key && (
+                <span className="ml-2 text-xs text-slate-400">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Productos Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-        {productosFiltrados.map(producto => {
-          const stockStatus = !producto.cantidad ? 'agotado' : 
-                             producto.cantidad < 10 ? 'bajo' : 'normal';
-          
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {productosFiltrados.map((producto) => {
+          const cantidad = producto.cantidad ?? 0;
+          const status = cantidad === 0 ? 'agotado' : cantidad < 5 ? 'bajo' : 'normal';
+
           return (
-            <div 
+            <article
               key={producto.id_producto}
-              className="group bg-white/10 backdrop-blur border border-white/20 rounded-xl p-5 hover:border-white/40 hover:bg-white/15 transition-all duration-300 hover:shadow-xl flex flex-col"
+              className="floating-card group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.45)] transition-transform duration-300 hover:-translate-y-1"
             >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-white text-base truncate group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-indigo-400 group-hover:bg-clip-text transition">
-                    {producto.nombre}
-                  </h3>
+              <div className="absolute inset-x-6 top-6 h-24 rounded-3xl bg-gradient-to-r from-indigo-50 via-white to-indigo-50 opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
+
+              <div className="relative flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">{producto.nombre}</h3>
                   {producto.descripcion && (
-                    <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-                      {producto.descripcion}
-                    </p>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{producto.descripcion}</p>
                   )}
+                </div>
+                <span className="rounded-full border border-indigo-200/70 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-600 shadow-sm">
+                  #{producto.id_producto}
+                </span>
+              </div>
+
+              <div className="relative mt-6 flex items-center gap-4">
+                <div className="rounded-2xl border border-indigo-200/70 bg-indigo-50 px-4 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Precio</p>
+                  <p className="text-xl font-semibold text-slate-900">${producto.precio.toFixed(2)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Stock</p>
+                  <p className="text-xl font-semibold text-slate-900">{cantidad}</p>
                 </div>
               </div>
 
-              {/* Precio Badge */}
-              <div className="inline-flex items-center gap-2 mb-4 w-fit">
-                <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500/30 to-indigo-500/30 border border-blue-400/30 rounded-lg">
-                  <span className="text-xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">
-                    ${producto.precio.toFixed(2)}
-                  </span>
-                </div>
+              <div className="mt-6 flex items-center justify-between">
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    status === 'agotado'
+                      ? 'border border-rose-200/80 bg-rose-50/80 text-rose-500'
+                      : status === 'bajo'
+                        ? 'border border-amber-200/80 bg-amber-50/80 text-amber-600'
+                        : 'border border-emerald-200/80 bg-emerald-50/80 text-emerald-600'
+                  }`}
+                >
+                  <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                  {status === 'agotado' ? 'Agotado' : status === 'bajo' ? 'Stock bajo' : 'En stock'}
+                </span>
+                <p className="text-xs font-medium text-slate-400">
+                  Valor: <span className="font-semibold text-slate-700">${(producto.precio * cantidad).toFixed(2)}</span>
+                </p>
               </div>
-
-              {/* Stock Info */}
-              <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-white/10">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Stock</p>
-                  <p className="text-2xl font-bold text-white">
-                    {producto.cantidad !== null && producto.cantidad !== undefined ? producto.cantidad : '—'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider">ID</p>
-                  <p className="text-sm font-mono text-slate-300">#{producto.id_producto}</p>
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex-1">
-                  {stockStatus === 'agotado' && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-500/20 text-red-300 text-xs font-bold rounded-full border border-red-500/30">
-                      <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                      Agotado
-                    </span>
-                  )}
-                  {stockStatus === 'bajo' && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-bold rounded-full border border-yellow-500/30">
-                      <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                      Stock Bajo
-                    </span>
-                  )}
-                  {stockStatus === 'normal' && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-300 text-xs font-bold rounded-full border border-green-500/30">
-                      <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                      En Stock
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            </article>
           );
         })}
       </div>
 
       {productosFiltrados.length === 0 && productos.length > 0 && (
-        <div className="text-center py-12">
-          <p className="text-slate-400 text-lg">No se encontraron productos con "{filtro}"</p>
+        <div className="rounded-3xl border border-slate-200/70 bg-white/80 px-6 py-12 text-center shadow-sm">
+          <p className="text-sm font-semibold text-slate-500">
+            No se encontraron productos que coincidan con <span className="text-indigo-500">“{filtro}”</span>
+          </p>
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="mt-8 pt-8 border-t border-white/10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center group hover:border-blue-400/30 transition-all">
-            <p className="text-slate-400 text-sm font-semibold mb-2">TOTAL PRODUCTOS</p>
-            <p className="text-4xl font-bold text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-400 group-hover:to-indigo-400 group-hover:bg-clip-text transition">
-              {productos.length}
-            </p>
-          </div>
-          
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center group hover:border-indigo-400/30 transition-all">
-            <p className="text-slate-400 text-sm font-semibold mb-2">VALOR TOTAL</p>
-            <p className="text-4xl font-bold text-transparent bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text">
-              ${productos.reduce((sum, p) => sum + (p.precio * (p.cantidad || 0)), 0).toFixed(2)}
-            </p>
-          </div>
-          
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center group hover:border-purple-400/30 transition-all">
-            <p className="text-slate-400 text-sm font-semibold mb-2">STOCK TOTAL</p>
-            <p className="text-4xl font-bold text-transparent bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text">
-              {productos.reduce((sum, p) => sum + (p.cantidad || 0), 0)}
-            </p>
-          </div>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="surface-glass p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total de productos</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">{totalProductos}</p>
         </div>
-      </div>
+        <div className="surface-glass p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Stock disponible</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">{totalStock}</p>
+        </div>
+        <div className="surface-glass p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Valor estimado</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-900">${valorTotal.toFixed(2)}</p>
+        </div>
+        <div className="surface-glass p-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Productos en alerta</p>
+          <p className="mt-2 text-3xl font-semibold text-rose-500">{stockCritico}</p>
+        </div>
+      </section>
     </div>
   );
 }
