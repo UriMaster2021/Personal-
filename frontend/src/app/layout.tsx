@@ -11,9 +11,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className="bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900 text-white antialiased">
-        <div className="min-h-screen flex flex-col">
-          {children}
+      <body className="antialiased">
+        <div className="relative min-h-screen">
+          <div className="ambient-blur" aria-hidden="true" />
+          <div className="subtle-grid" aria-hidden="true" />
+          <div className="relative flex min-h-screen flex-col">
+            {children}
+          </div>
         </div>
       </body>
     </html>
